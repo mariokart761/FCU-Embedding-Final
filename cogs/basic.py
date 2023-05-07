@@ -17,6 +17,17 @@ class Basic(Cog_Extension):
         embed.add_field(name="成員", value="ZHU-JIA-LE", inline=True)
         embed.set_footer(text="Discord : AyanoMyWaifu#0980")
         await ctx.send(embed=embed)
-        
+    
+    @commands.has_permissions(administrator = True)
+    @commands.command()
+    async def anonyMsg(self, ctx, *,msg): # *後皆視為msg
+        await ctx.message.delete() # 刪除訊息
+        await ctx.send(msg)
+    
+    @commands.has_permissions(administrator = True)
+    @commands.command(aliases = ["purge", "delete", "clear", "clean"])
+    async def deleteMsg(self, ctx, num:int):
+        await ctx.channel.purge(limit = num+1)
+    
 async def setup(bot):
     await bot.add_cog(Basic(bot))

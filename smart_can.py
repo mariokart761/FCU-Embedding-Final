@@ -9,7 +9,8 @@ import asyncio
 with open('setting.json', 'r', encoding='utf8') as jfile:
     bot_setting = json.load(jfile)
 
-# bot setting，link:https://discord.com/developers/applications
+# Discord doc, link:https://discord.com/developers/docs/intro
+# bot setting, link:https://discord.com/developers/applications
 # 須將 Privileged Gateway Intents 下面的3個選項打勾
 intent = discord.Intents.default()
 intent.members = True
