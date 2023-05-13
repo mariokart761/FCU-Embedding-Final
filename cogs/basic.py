@@ -19,13 +19,13 @@ class Basic(Cog_Extension):
         await ctx.send(embed=embed)
     
     @commands.has_permissions(administrator = True)
-    @commands.command()
+    @commands.command(aliases = ["匿名"])
     async def anonyMsg(self, ctx, *,msg): # *後皆視為msg
         await ctx.message.delete() # 刪除訊息
         await ctx.send(msg)
     
     @commands.has_permissions(administrator = True)
-    @commands.command(aliases = ["purge", "delete", "clear", "clean"])
+    @commands.command(aliases = ["purge", "delete", "clear", "clean", "刪除訊息"])
     async def deleteMsg(self, ctx, num:int):
         await ctx.channel.purge(limit = num+1)
     
