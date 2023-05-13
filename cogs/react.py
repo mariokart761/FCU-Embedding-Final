@@ -8,8 +8,6 @@ with open('setting.json', 'r', encoding='utf8') as jfile:
     bot_setting = json.load(jfile)
 
 class React(Cog_Extension):
-    def __init__(self, bot):
-        self.bot = bot
         
     #星爆氣流斬
     @commands.command()
