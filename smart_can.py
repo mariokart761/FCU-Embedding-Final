@@ -1,6 +1,5 @@
 import discord
 from discord.ext import commands
-import random
 import json
 import os
 import asyncio
@@ -54,5 +53,14 @@ async def main():
         await bot.start(bot_setting["BOT_TOKEN"])
 
 if __name__ == "__main__":
-    #BOT啟動
+    # BOT啟動
+    # 需要Python 3.7+
     asyncio.run(main())
+    try:
+        while(1):
+            ...    
+        
+    except KeyboardInterrupt:
+        print("[INFO] Shutdown the bot...")
+    finally:
+        print("[INFO] Bot is offline.")
