@@ -32,7 +32,7 @@ class SmartCan:
         # GPIO mode 為TEGRA_SOC (mode 1000)
         self.Trig_Pin = "DAP4_DIN" # BOARD38 / BCM20 
         self.Echo_Pin = "DAP4_DOUT" # BOARD40 / BCM21 
-        self.SERVO_THRESHOLD = 26 # 距離多近才啟動SERVO，偵測單位為cm
+        self.SERVO_THRESHOLD = 20 # 距離多近才啟動SERVO，偵測單位為cm
         self.DISTANCE_CHECK_INTERVAL = 1 # 距離偵測間隔，單位為秒
         self.servoKit = ServoKit(channels=16)
         self.setup()
@@ -80,7 +80,7 @@ class SmartCan:
                     break
                 elif (distance < self.SERVO_THRESHOLD): opening_time_count = 0
                 opening_time_count += 1
-            time.sleep(1) # 每秒check一次
+            time.sleep(self.DISTANCE_CHECK_INTERVAL) # 每秒check一次
         
         # 關閉蓋子
         self.servoKit.servo[0].angle = 90
@@ -106,7 +106,7 @@ if __name__ == "__main__":
                 # distance is None (表示timeout)
                 print('[INFO] Detection timeout')
                 
-            time.sleep(1) # 每秒偵測一次距離
+            time.sleep(smartCan.DISTANCE_CHECK_INTERVAL) # 每N時間偵測距離
     except KeyboardInterrupt:
         print('[INFO] KeyboardInterrupt')
     finally:
