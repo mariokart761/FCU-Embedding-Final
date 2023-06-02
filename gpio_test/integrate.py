@@ -30,49 +30,75 @@ bcm #: 21 tegra: DAP4_DOUT
 # GPIO mode 為TEGRA_SOC (mode 1000)
 Trig_Pin = "DAP4_DIN" # BOARD38 / BCM20 
 Echo_Pin = "DAP4_DOUT" # BOARD40 / BCM21 
+SERVO_THRESHOLD = 26 # 距離多近才啟動SERVO，偵測單位為cm
+DISTANCE_CHECK_INTERVAL = 1 # 距離偵測間隔，單位為秒
 GPIO.setup(Trig_Pin, GPIO.OUT, initial=GPIO.LOW)
 GPIO.setup(Echo_Pin, GPIO.IN)
 servoKit = ServoKit(channels=16)
 
 def get_distance():
     GPIO.output(Trig_Pin, GPIO.HIGH)
-    # 将Trig脚位拉高电位输出超声波信号，等待100微秒之后关闭输出
     time.sleep(0.000100) # wait at least 10 microsecond
     GPIO.output(Trig_Pin, GPIO.LOW)
     
-    # 在Echo收到信号前后分别记录时间
-    timeout = time.time() + 0.5  # 设置超时时间为0.5秒钟
+    # Echo收到信號前分別記錄時間
+    timeout = time.time() + 0.5  # 設定timeout時間為0.5秒
     while not GPIO.input(Echo_Pin):
         if time.time() > timeout:
-            return None  # 如果超时则返回None
+            return None  # 超時則return None
     t1 = time.time()
     
-    timeout = time.time() + 0.5  # 设置超时时间为0.5秒钟
+    timeout = time.time() + 0.5  # 設定timeout時間為0.5秒
     while GPIO.input(Echo_Pin):
         if time.time() > timeout:
-            return None  # 如果超时则返回None
+            return None  # 超時則return None
     t2 = time.time()
     
-    # 最后套用速度公式算出距离返回
+    # return 套速度公式計算出的距離
     return (t2-t1)*340*100/2
+
+def lid_opening_control():
+    # 打開蓋子
+    servoKit.servo[0].angle = 0
+    servoKit.servo[4].angle = 180
+    opening_time_count = 0 # 設定計時器
+    OPENING_CHECK_TIME = 5 # 設定距離<SERVO_THRESHOLD時，超過N秒才關閉蓋子
+    
+    while True:
+        # 連續 OPENING_CHECK_TIME秒的距離都>=SERVO_THRESHOLD才脫離迴圈，若中途偵測到距離<則重置計時
+        distance = get_distance()
+        if (distance is not None):
+            print('Distance: %0.2f cm' % distance)
+            if (distance >= SERVO_THRESHOLD and opening_time_count >= OPENING_CHECK_TIME):
+                print('[INFO] 即將關閉')
+                time.sleep(1) # 再多等待1秒才將蓋子關閉
+                break
+            elif (distance < SERVO_THRESHOLD): opening_time_count = 0
+            opening_time_count += 1
+        time.sleep(1) # 每秒check一次
+    
+    # 關閉蓋子
+    servoKit.servo[0].angle = 90
+    servoKit.servo[4].angle = 90
+    return
 
 if __name__ == "__main__":
     try:
         while True:
             distance = get_distance()
-            if (distance is not None and distance >= 10):
-                print('Distance: %0.2f cm' % distance)
-            elif (distance is not None and distance < 10):
-                # 控制Servo
-                print('Distance: %0.2f cm' % distance)
-                servoKit.servo[0].angle = 180
-                servoKit.servo[4].angle = 180
-                time.sleep(1)
-                servoKit.servo[0].angle = 90
-                servoKit.servo[4].angle = 90
+            
+            if (distance is not None and distance >= SERVO_THRESHOLD):
+                print('[INFO] Distance: %0.2f cm' % distance)
+            elif (distance is not None and distance < SERVO_THRESHOLD):
+                # 偵測到距離<SERVO_THRESHOLD，則控制Servo
+                print('[INFO] Distance: %0.2f cm' % distance)
+                # 開蓋控制
+                lid_opening_control()
             else:
-                print('Measurement timeout')
-            time.sleep(1)
+                # distance is None (表示timeout)
+                print('[INFO] Detection timeout')
+                
+            time.sleep(1) # 每秒偵測一次距離
     except KeyboardInterrupt:
         print('Bye')
     finally:
