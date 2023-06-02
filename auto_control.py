@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import time
 from RPi import GPIO
 from adafruit_servokit import ServoKit
@@ -90,6 +91,7 @@ class SmartCan:
 if __name__ == "__main__":
     smartCan = SmartCan()
     try:
+        print('[INFO] 感應式開蓋啟動')
         while True:
             distance = smartCan.get_distance()
             

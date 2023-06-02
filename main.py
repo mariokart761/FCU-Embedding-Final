@@ -3,7 +3,8 @@ from discord.ext import commands
 import json
 import os
 import asyncio
-
+import subprocess
+import threading
 
 with open('setting.json', 'r', encoding='utf8') as jfile:
     bot_setting = json.load(jfile)
@@ -47,20 +48,29 @@ async def load_extensions():
             # cut off the .py from the file name
             await bot.load_extension(f"cogs.{filename[:-3]}")
 
-async def main():
-    async with bot:
-        await load_extensions()
-        await bot.start(bot_setting["BOT_TOKEN"])
+def run_subprocess():
+    subprocess.run(["python", "auto_control.py"])  # 執行 auto_control.py
 
-if __name__ == "__main__":
-    # BOT啟動
-    # 需要Python 3.7+
-    asyncio.run(main())
+async def main():
     try:
-        while(1):
-            ...    
-        
+        # 運行discord bot
+        async with bot:
+            await load_extensions()
+            await bot.start(bot_setting["BOT_TOKEN"])
     except KeyboardInterrupt:
+        print('[INFO] KeyboardInterrupt')
         print("[INFO] Shutdown the bot...")
     finally:
         print("[INFO] Bot is offline.")
+        
+if __name__ == "__main__":
+    # 創建thread並啟動
+    thread = threading.Thread(target=run_subprocess)
+    thread.start()
+    
+    # BOT啟動
+    # 需要Python 3.7+
+    asyncio.run(main())
+    
+    # 等待 thread 完成
+    thread.join()
