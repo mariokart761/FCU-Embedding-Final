@@ -2,6 +2,7 @@
 import time
 from RPi import GPIO
 from adafruit_servokit import ServoKit
+import json
 
 """
 bcm #: 4 tegra: AUD_MCLK
@@ -30,31 +31,51 @@ bcm #: 21 tegra: DAP4_DOUT
 class SmartCan:
     def __init__(self):
         # GPIO mode 為TEGRA_SOC (mode 1000)
-        self.Trig_Pin = "DAP4_DIN" # BOARD38 / BCM20 
-        self.Echo_Pin = "DAP4_DOUT" # BOARD40 / BCM21 
-        self.SERVO_THRESHOLD = 20 # 距離多近才啟動SERVO，偵測單位為cm
+        # 超音波Sensor1 pin設置
+        self.Sensor1_Trig_Pin = "DAP4_DIN" # BOARD38 / BCM20 
+        self.Sensor1_Echo_Pin = "DAP4_DOUT" # BOARD40 / BCM21 
+        # 超音波Sensor2 pin設置
+        self.Sensor2_Trig_Pin = "DAP4_FS" # BOARD35 / BCM19
+        self.Sensor2_Echo_Pin = "SPI2_MOSI" # BOARD37 / BCM26 
+        # 其他設定
+        self.SERVO_THRESHOLD = 26 # 距離多近才啟動SERVO，偵測單位為cm
+        self.NOTIFY_THRESHOLD = 10 # 距離多近才啟動提示功能，偵測單位為cm
         self.DISTANCE_CHECK_INTERVAL = 1 # 距離偵測間隔，單位為秒
         self.servoKit = ServoKit(channels=16)
+        self._is_full = False
         self.setup()
+    
+    @property
+    def is_full(self):
+        return self._is_full
+    
+    @is_full.setter
+    def is_full(self, value):
+        if(value == True or value == False):
+            self._is_full = value
+        else:
+            raise ValueError("[INFO] is_full 必須為 True 或 False")
         
     def setup(self):
-        GPIO.setup(self.Trig_Pin, GPIO.OUT, initial=GPIO.LOW)
-        GPIO.setup(self.Echo_Pin, GPIO.IN)
+        GPIO.setup(self.Sensor1_Trig_Pin, GPIO.OUT, initial=GPIO.LOW)
+        GPIO.setup(self.Sensor1_Echo_Pin, GPIO.IN)
+        GPIO.setup(self.Sensor2_Trig_Pin, GPIO.OUT, initial=GPIO.LOW)
+        GPIO.setup(self.Sensor2_Echo_Pin, GPIO.IN)
     
-    def get_distance(self):
-        GPIO.output(self.Trig_Pin, GPIO.HIGH)
+    def get_distance(self, Trig_Pin, Echo_Pin):
+        GPIO.output(Trig_Pin, GPIO.HIGH)
         time.sleep(0.000100) # wait at least 10 microsecond
-        GPIO.output(self.Trig_Pin, GPIO.LOW)
+        GPIO.output(Trig_Pin, GPIO.LOW)
         
         # Echo收到信號前分別記錄時間
         timeout = time.time() + 0.5  # 設定timeout時間為0.5秒
-        while not GPIO.input(self.Echo_Pin):
+        while not GPIO.input(Echo_Pin):
             if time.time() > timeout:
                 return None  # 超時則return None
         t1 = time.time()
         
         timeout = time.time() + 0.5  # 設定timeout時間為0.5秒
-        while GPIO.input(self.Echo_Pin):
+        while GPIO.input(Echo_Pin):
             if time.time() > timeout:
                 return None  # 超時則return None
         t2 = time.time()
@@ -71,7 +92,7 @@ class SmartCan:
         
         while True:
             # 連續 OPENING_CHECK_TIME秒的距離都>=SERVO_THRESHOLD才脫離迴圈，若中途偵測到距離<則重置計時
-            distance = self.get_distance()
+            distance = self.get_distance(self.Sensor1_Trig_Pin, self.Sensor1_Echo_Pin)
             if (distance is not None):
                 print('[INFO] Opening: Distance: %0.2f cm' % distance)
                 if (distance >= self.SERVO_THRESHOLD and opening_time_count >= OPENING_CHECK_TIME):
@@ -88,23 +109,48 @@ class SmartCan:
         
         return
 
+def write_data_to_file(data):
+    with open('sensor_data.json', 'w') as f:
+        json.dump(data, f)
+
 if __name__ == "__main__":
     smartCan = SmartCan()
     try:
         print('[INFO] 感應式開蓋啟動')
         while True:
-            distance = smartCan.get_distance()
-            
-            if (distance is not None and distance >= smartCan.SERVO_THRESHOLD):
-                print('[INFO] Distance: %0.2f cm' % distance)
-            elif (distance is not None and distance < smartCan.SERVO_THRESHOLD):
+            # sensor1進行距測並控制開蓋
+            sensor1_distance = smartCan.get_distance(smartCan.Sensor1_Trig_Pin, smartCan.Sensor1_Echo_Pin)
+            if (sensor1_distance is not None and sensor1_distance >= smartCan.SERVO_THRESHOLD):
+                print('[INFO] Sensor1 Distance: %0.2f cm' % sensor1_distance)
+            elif (sensor1_distance is not None and sensor1_distance < smartCan.SERVO_THRESHOLD):
                 # 偵測到距離<SERVO_THRESHOLD，則控制Servo
-                print('[INFO] Distance: %0.2f cm' % distance)
+                print('[INFO] Sensor1 Distance: %0.2f cm' % sensor1_distance)
                 # 開蓋控制
                 smartCan.lid_opening_control()
             else:
                 # distance is None (表示timeout)
                 print('[INFO] Detection timeout')
+            
+            # sensor2進行距測並寫入檔案，供discord bot讀取
+            sensor2_distance = smartCan.get_distance(smartCan.Sensor2_Trig_Pin, smartCan.Sensor2_Echo_Pin)
+            if (sensor2_distance is not None and sensor2_distance >= smartCan.NOTIFY_THRESHOLD):
+                # smartCan.is_full用來記錄狀態，減少寫入次數
+                if smartCan.is_full == True:
+                    data = {
+                        'isFull': False
+                    }
+                    write_data_to_file(data)
+                smartCan.is_full = False
+                ...
+            elif (sensor2_distance is not None and sensor2_distance < smartCan.NOTIFY_THRESHOLD):
+                if smartCan.is_full == False:
+                    data = {
+                        'isFull': True
+                    }
+                    write_data_to_file(data)
+                smartCan.is_full = True
+            else:
+                ...    
                 
             time.sleep(smartCan.DISTANCE_CHECK_INTERVAL) # 每N時間偵測距離
     except KeyboardInterrupt:
@@ -113,3 +159,7 @@ if __name__ == "__main__":
         smartCan.servoKit.servo[0].angle = 90
         smartCan.servoKit.servo[4].angle = 90
         GPIO.cleanup()
+        data = {
+            'isFull': False
+        }
+        write_data_to_file(data)

@@ -12,14 +12,14 @@ class Event(Cog_Extension):
     @commands.Cog.listener()
     async def on_member_join(self, member):
         #print(f'{member} join!')
-        channel = self.bot.get_chanel(int(bot_setting["bot_channel"]))
+        channel = self.bot.get_channel(int(bot_setting["bot_channel"]))
         await channel.send(f'{member} join!')
 
     # 成員離開提示
     @commands.Cog.listener()
     async def on_member_remove(self, member):
         #print(f'{member} leave!')
-        channel = self.bot.get_chanel(int(bot_setting["bot_channel"]))
+        channel = self.bot.get_channel(int(bot_setting["bot_channel"]))
         await channel.send(f'{member} leave!')
         
     @commands.Cog.listener()

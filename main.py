@@ -55,6 +55,7 @@ async def main():
     try:
         # 運行discord bot
         async with bot:
+            print('[INFO] Waiting for Bot...')
             await load_extensions()
             await bot.start(bot_setting["BOT_TOKEN"])
     except KeyboardInterrupt:
