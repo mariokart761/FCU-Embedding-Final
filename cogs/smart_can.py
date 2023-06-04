@@ -4,6 +4,7 @@ from core.classes import Cog_Extension
 from adafruit_servokit import ServoKit
 import json
 import asyncio
+import time
 
 """
 bcm #: 4 tegra: AUD_MCLK
@@ -44,22 +45,10 @@ class SmartCan(Cog_Extension):
     def __init__(self, bot):
         self.bot = bot
         self.servoKit = ServoKit(channels=16)
-        # self.Trig_Pin = "DAP4_FS" # BOARD35 / BCM19
-        # self.Echo_Pin = "SPI2_MOSI" # BOARD37 / BCM26 
         self.NOTIFY_THRESHOLD = 26 # 距離多近才啟動SERVO，偵測單位為cm
         self.DISTANCE_CHECK_INTERVAL = 10 # 距離偵測間隔，單位為秒
         self.servoKit = ServoKit(channels=16)
         self.check_can_isfull.start()
-        # async def check_can_isfull(self):
-        #     await self.bot.wait_until_ready()
-        #     while not self.bot.is_closed():
-        #         data = read_data_from_file()
-        #         if data["isFull"] == True:
-        #             self.channel = self.bot.get_chanel(int(bot_setting["bot_channel"]))
-        #             await self.channel.send("[提醒] :exclamation: 垃圾桶滿囉~ 請進行清理 :exclamation:")
-        #         await asyncio.sleep(5) # 間隔時間，單位為秒(s)
-        
-        # self.bg_task = self.bot.loop.create_task(check_can_isfull(self))
         
     @tasks.loop(seconds=5.0)
     async def check_can_isfull(self):
@@ -76,21 +65,58 @@ class SmartCan(Cog_Extension):
     async def before_printer(self):
         await self.bot.wait_until_ready()
         print("[INFO] IsFull loop is ready!")
+        
+    # 開蓋速度控制
+    def lid_open(self):
+        start_angle = 90
+        end_angle = 0
+        step = 5
+
+        if end_angle > start_angle:
+            for angle in range(start_angle, end_angle + 1, step):
+                self.servoKit.servo[0].angle = angle
+                self.servoKit.servo[4].angle = 180 - angle
+                time.sleep(0.05)
+        else:
+            for angle in range(start_angle, end_angle - 1, -step):
+                self.servoKit.servo[0].angle = angle
+                self.servoKit.servo[4].angle = 180 - angle
+                time.sleep(0.05)
+                
+    # 關蓋速度控制
+    def lid_close(self):
+        start_angle = 0
+        end_angle = 90
+        step = 5
+
+        if end_angle > start_angle:
+            for angle in range(start_angle, end_angle + 1, step):
+                self.servoKit.servo[0].angle = angle
+                self.servoKit.servo[4].angle = 180 - angle
+                time.sleep(0.05)
+        else:
+            for angle in range(start_angle, end_angle - 1, -step):
+                self.servoKit.servo[0].angle = angle
+                self.servoKit.servo[4].angle = 180 - angle
+                time.sleep(0.05)
+    
     
     # DC打開蓋子
     @commands.command(aliases = ["open", "lid open", "打開蓋子"])
     async def lid_opening(self, ctx):
         # 打開蓋子
-        self.servoKit.servo[0].angle = 0
-        self.servoKit.servo[4].angle = 180
+        self.lid_open()
+        # self.servoKit.servo[0].angle = 0
+        # self.servoKit.servo[4].angle = 180
         await ctx.send('蓋子已開啟')
     
     # DC關閉蓋子
     @commands.command(aliases = ["close", "lid close", "關閉蓋子"])
     async def lid_closing(self, ctx):
         # 關閉蓋子
-        self.servoKit.servo[0].angle = 90
-        self.servoKit.servo[4].angle = 90
+        self.lid_close()
+        # self.servoKit.servo[0].angle = 90
+        # self.servoKit.servo[4].angle = 90
         await ctx.send('蓋子已關閉')
     
 
