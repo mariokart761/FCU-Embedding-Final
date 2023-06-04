@@ -28,6 +28,7 @@ bcm #: 26 tegra: SPI2_MOSI
 bcm #: 20 tegra: DAP4_DIN
 bcm #: 21 tegra: DAP4_DOUT
 """
+
 class SmartCan:
     def __init__(self):
         # GPIO mode 為TEGRA_SOC (mode 1000)
@@ -83,10 +84,44 @@ class SmartCan:
         # return 套速度公式計算出的距離
         return (t2-t1)*340*100/2
 
+    def lid_open(self):
+        start_angle = 90
+        end_angle = 0
+        step = 5
+
+        if end_angle > start_angle:
+            for angle in range(start_angle, end_angle + 1, step):
+                self.servoKit.servo[0].angle = angle
+                self.servoKit.servo[4].angle = 180 - angle
+                time.sleep(0.05)
+        else:
+            for angle in range(start_angle, end_angle - 1, -step):
+                self.servoKit.servo[0].angle = angle
+                self.servoKit.servo[4].angle = 180 - angle
+                time.sleep(0.05)
+
+    def lid_close(self):
+        start_angle = 0
+        end_angle = 90
+        step = 5
+
+        if end_angle > start_angle:
+            for angle in range(start_angle, end_angle + 1, step):
+                self.servoKit.servo[0].angle = angle
+                self.servoKit.servo[4].angle = 180 - angle
+                time.sleep(0.05)
+        else:
+            for angle in range(start_angle, end_angle - 1, -step):
+                self.servoKit.servo[0].angle = angle
+                self.servoKit.servo[4].angle = 180 - angle
+                time.sleep(0.05)
+    
+    
     def lid_opening_control(self):
         # 打開蓋子
-        self.servoKit.servo[0].angle = 0
-        self.servoKit.servo[4].angle = 180
+        self.lid_open()
+        # self.servoKit.servo[0].angle = 0
+        # self.servoKit.servo[4].angle = 180
         opening_time_count = 0 # 設定計時器
         OPENING_CHECK_TIME = 5 # 設定距離<SERVO_THRESHOLD時，超過N秒才關閉蓋子
         
@@ -104,11 +139,12 @@ class SmartCan:
             time.sleep(self.DISTANCE_CHECK_INTERVAL) # 每秒check一次
         
         # 關閉蓋子
-        self.servoKit.servo[0].angle = 90
-        self.servoKit.servo[4].angle = 90
+        self.lid_close()
+        # self.servoKit.servo[0].angle = 90
+        # self.servoKit.servo[4].angle = 90
         
         return
-
+    
 def write_data_to_file(data):
     with open('sensor_data.json', 'w') as f:
         json.dump(data, f)
